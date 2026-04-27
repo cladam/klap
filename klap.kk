@@ -29,3 +29,5 @@ pub import src/matches
 pub import src/parse
 pub import src/help
 pub import src/error
+
+val klap_version = "0.1.0"
