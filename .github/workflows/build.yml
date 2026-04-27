@@ -13,15 +13,8 @@ on:
   workflow_dispatch:
 
 jobs:
-  build:
-    strategy:
-      matrix:
-        include:
-          - os: ubuntu-latest
-            artifact: klap-linux-x86_64
-          - os: macos-latest
-            artifact: klap-macos-arm64
-    runs-on: ${{ matrix.os }}
+  build-and-test:
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
@@ -30,53 +23,28 @@ jobs:
           curl -sSL https://github.com/koka-lang/koka/releases/latest/download/install.sh | sudo sh
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
 
-      - name: Build (release)
-        if: startsWith(github.ref, 'refs/tags/v')
-        run: |
-          koka -O2 -isrc klap.kk -o klap
-          chmod +x klap
+      - name: Type-check library
+        run: koka -isrc --library klap.kk
 
-      - name: Build (debug)
-        if: ${{ !startsWith(github.ref, 'refs/tags/v') }}
-        run: |
-          koka -isrc klap.kk -o klap
-          chmod +x klap
-
-      - name: Test
-        run: |
-          koka -itests -isrc -e tests/test-klap.kk
-
-      - name: Strip binary (Linux)
-        if: runner.os == 'Linux'
-        run: strip klap
-
-      - name: Ad-hoc codesign (macOS)
-        if: runner.os == 'macOS'
-        run: codesign --sign - --force klap
-
-      - name: Package
-        run: tar czf ${{ matrix.artifact }}.tar.gz klap
-
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ matrix.artifact }}
-          path: ${{ matrix.artifact }}.tar.gz
+      - name: Run tests
+        run: koka -isrc -itests -e tests/test-klap.kk
 
   release:
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: build
+    needs: build-and-test
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
-      - name: Download artifacts
-        uses: actions/download-artifact@v4
-        with:
-          merge-multiple: true
+      - uses: actions/checkout@v4
+
+      - name: Package source
+        run: |
+          tar czf klap-${{ github.ref_name }}.tar.gz \
+            klap.kk src/ LICENSE README.md AUTHORS
 
       - name: Create release
         uses: softprops/action-gh-release@v2
         with:
-          files: '*.tar.gz'
+          files: klap-${{ github.ref_name }}.tar.gz
           generate_release_notes: true
