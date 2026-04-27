@@ -33,13 +33,13 @@ jobs:
       - name: Build (release)
         if: startsWith(github.ref, 'refs/tags/v')
         run: |
-          koka -O2 -isrc src/klap.kk -o klap
+          koka -O2 -isrc klap.kk -o klap
           chmod +x klap
 
       - name: Build (debug)
         if: ${{ !startsWith(github.ref, 'refs/tags/v') }}
         run: |
-          koka -isrc src/klap.kk -o klap
+          koka -isrc klap.kk -o klap
           chmod +x klap
 
       - name: Test
