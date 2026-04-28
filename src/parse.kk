@@ -49,19 +49,26 @@ pub fun parse( c : command, args : list<string> ) : <klap-error,div> arg-matches
 // Prints help/version to stdout and exits. Prints errors to stderr.
 // ---------------------------------------------------------------------------
 
-pub fun parse-or-exit( c : command, args : list<string> ) : <console,exn,div> arg-matches
+pub fun parse-or-exit( c : command, args : list<string> ) : <console,io,div> arg-matches
   match try-klap({ c.parse(args) })
     Right(m) -> m
     Left("__help__") ->
       println(c.format-help)
-      throw("exit:0")
+      klap-exit(0)
+      throw("unreachable")
     Left("__version__") ->
       println(c.format-version)
-      throw("exit:0")
+      klap-exit(0)
+      throw("unreachable")
     Left(msg) ->
       println(c.cmd-name ++ ": " ++ msg)
       println("Try '" ++ c.cmd-name ++ " --help' for more information.")
-      throw("exit:2")
+      klap-exit(2)
+      throw("unreachable")
+
+// Clean process exit without throwing exceptions
+extern klap-exit( code : int ) : io ()
+  c inline "exit(kk_integer_clamp32(#1, kk_context()))"
 
 // ---------------------------------------------------------------------------
 // Recursive parse loop
