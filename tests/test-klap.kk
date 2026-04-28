@@ -285,6 +285,71 @@ fun help-tests()
       assert/is-false(h.str-contains("--debug"))
 
 // ---------------------------------------------------------------------------
+// Positional validation tests
+// ---------------------------------------------------------------------------
+
+fun positional-validation-tests()
+  println("\n" ++ bold("=== klap: positional validation tests ==="))
+  defaultKDivHandler
+    dtest("positional with .values() rejects invalid value")
+      val c = command("test")
+        .arg(positional("COMMAND").values(["build", "run", "clean"]))
+      match try-klap({ c.parse(["bogus"]) })
+        Right(_) -> fatal("should have rejected 'bogus'")
+        Left(msg) ->
+          assert/is-true(msg.str-contains("bogus"))
+          assert/is-true(msg.str-contains("possible values"))
+
+    dtest("positional with .values() accepts valid value")
+      val c = command("test")
+        .arg(positional("COMMAND").values(["build", "run", "clean"]))
+      match try-klap({ c.parse(["build"]) })
+        Right(m) ->
+          assert/is-true(m.get-one("COMMAND") == Just("build"))
+          assert/is-true(m.get-positionals.length == 1)
+        Left(msg) -> fatal("unexpected error: " ++ msg)
+
+    dtest("required positional fails when missing")
+      val c = command("test")
+        .arg(positional("COMMAND").required)
+      match try-klap({ c.parse([]) })
+        Right(_) -> fatal("should have failed for missing required arg")
+        Left(msg) -> assert/is-true(msg.str-contains("required"))
+
+    dtest("non-multiple positional rejects extra args")
+      val c = command("test")
+        .arg(positional("FILE"))
+      match try-klap({ c.parse(["a.txt", "b.txt"]) })
+        Right(_) -> fatal("should have rejected extra positional")
+        Left(msg) -> assert/is-true(msg.str-contains("unexpected"))
+
+    dtest("multiple positional accepts many args")
+      val c = command("test")
+        .arg(positional("FILE").multiple)
+      match try-klap({ c.parse(["a.txt", "b.txt", "c.txt"]) })
+        Right(m) ->
+          assert/is-true(m.get-positionals.length == 3)
+          assert/is-true(m.get-many("FILE").length == 3)
+        Left(msg) -> fatal("unexpected error: " ++ msg)
+
+    dtest("positional queryable by name after parse")
+      val c = command("test")
+        .arg(positional("COMMAND").values(["build", "run"]))
+        .arg(positional("FILE").multiple)
+      match try-klap({ c.parse(["build", "main.kk", "util.kk"]) })
+        Right(m) ->
+          assert/is-true(m.get-one("COMMAND") == Just("build"))
+          assert/is-true(m.get-many("FILE").length == 2)
+        Left(msg) -> fatal("unexpected error: " ++ msg)
+
+    dtest("positional validation works after --")
+      val c = command("test")
+        .arg(positional("COMMAND").values(["build", "run"]))
+      match try-klap({ c.parse(["--", "bogus"]) })
+        Right(_) -> fatal("should have rejected 'bogus' after --")
+        Left(msg) -> assert/is-true(msg.str-contains("bogus"))
+
+// ---------------------------------------------------------------------------
 // Entry point
 // ---------------------------------------------------------------------------
 
@@ -293,3 +358,4 @@ pub fun main() : io ()
   parse-tests()
   error-tests()
   help-tests()
+  positional-validation-tests()

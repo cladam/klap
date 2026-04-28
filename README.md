@@ -7,6 +7,7 @@ A command-line argument parsing library for [Koka](https://koka-lang.github.io/)
 - **Flags** — boolean switches with short (`-v`) and long (`--verbose`) forms
 - **Options** — key-value arguments (`--sort=name`, `-S name`)
 - **Positional arguments** — unnamed trailing arguments (`FILE...`)
+- **Positional validation** — `.values()`, `.required`, and `.multiple` enforced at parse time
 - **Combined short flags** — `-alR` expands to `-a -l -R`
 - **Multiple values** — collect repeated options into a list
 - **Allowed values** — restrict an option to a set of choices
@@ -85,6 +86,11 @@ option-short("ignore", 'I')
 
 // Positional argument (collects all trailing args)
 positional("FILE").multiple
+
+// Positional with allowed values and required
+positional("COMMAND")
+  .values(["build", "run", "check", "clean", "help"])
+  .required
 ```
 
 ### Querying results
@@ -96,7 +102,9 @@ m.get-flag("verbose")            // bool
 m.get-one("output")              // maybe<string>
 m.get-one-or("sort", "name")     // string (with default)
 m.get-many("ignore")             // list<string>
-m.get-positionals()              // list<string>
+m.get-positionals()              // list<string> (flat list, all positionals)
+m.get-one("COMMAND")             // maybe<string> (positional by name)
+m.get-many("FILE")               // list<string> (multiple positional by name)
 m.get-count("verbose")           // int (number of occurrences)
 ```
 
