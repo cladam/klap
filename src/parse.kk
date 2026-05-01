@@ -104,7 +104,7 @@ fun parse-loop( c : command, defs : list<arg-def>, pos-defs : list<arg-def>,
           else
             validate-value(d, value)
             parse-loop(c, defs, pos-defs, rest, m.add-value(d.arg-name, value), False)
-        Nothing -> klap-fail("unrecognized option '--" ++ name ++ "'")
+        Nothing -> klap-fail("unrecognised option '--" ++ name ++ "'")
     
     // Long flag or option without =: --all, --sort name
     Cons(a, rest) | a.starts-with("--").bool ->
@@ -121,7 +121,7 @@ fun parse-loop( c : command, defs : list<arg-def>, pos-defs : list<arg-def>,
                 parse-loop(c, defs, pos-defs, rest2, m.add-value(d.arg-name, val_), False)
               Nil ->
                 klap-fail("option '--" ++ name ++ "' requires a value")
-        Nothing -> klap-fail("unrecognized option '--" ++ name ++ "'")
+        Nothing -> klap-fail("unrecognised option '--" ++ name ++ "'")
     
     // Short flags (possibly combined): -arF, -I PATTERN
     Cons(a, rest) | a.starts-with("-").bool && a != "-" ->
