@@ -104,7 +104,7 @@ fun parse-loop( c : command, defs : list<arg-def>, pos-defs : list<arg-def>,
           else
             validate-value(d, value)
             parse-loop(c, defs, pos-defs, rest, m.add-value(d.arg-name, value), False)
-        Nothing -> klap-fail("unrecognised option '--" ++ name ++ "'")
+        Nothing -> klap-fail("unrecognized option '--" ++ name ++ "'")
     
     // Long flag or option without =: --all, --sort name
     Cons(a, rest) | a.starts-with("--").bool ->
@@ -112,16 +112,25 @@ fun parse-loop( c : command, defs : list<arg-def>, pos-defs : list<arg-def>,
       match find-long(defs, name)
         Just(d) ->
           if d.is-flag then
-            parse-loop(c, defs, pos-defs, rest, m.set-flag(d.arg-name), False)
+            val m1 = m.set-flag(d.arg-name)
+            val m2 = apply-actions(d.arg-actions, m1)
+            parse-loop(c, defs, pos-defs, rest, m2, False)
           else
-            // Option: consume next arg as value
-            match rest
-              Cons(val_, rest2) ->
-                validate-value(d, val_)
-                parse-loop(c, defs, pos-defs, rest2, m.add-value(d.arg-name, val_), False)
-              Nil ->
-                klap-fail("option '--" ++ name ++ "' requires a value")
-        Nothing -> klap-fail("unrecognised option '--" ++ name ++ "'")
+            // Option: check for optional value, then try next arg
+            match d.arg-optional-value
+              Just(default) ->
+                // Optional-value option used without =, use the default
+                validate-value(d, default)
+                parse-loop(c, defs, pos-defs, rest, m.add-value(d.arg-name, default), False)
+              Nothing ->
+                // Required value: consume next arg
+                match rest
+                  Cons(val_, rest2) ->
+                    validate-value(d, val_)
+                    parse-loop(c, defs, pos-defs, rest2, m.add-value(d.arg-name, val_), False)
+                  Nil ->
+                    klap-fail("option '--" ++ name ++ "' requires a value")
+        Nothing -> klap-fail("unrecognized option '--" ++ name ++ "'")
     
     // Short flags (possibly combined): -arF, -I PATTERN
     Cons(a, rest) | a.starts-with("-").bool && a != "-" ->
@@ -149,7 +158,9 @@ fun parse-short-chars( c : command, defs : list<arg-def>, pos-defs : list<arg-de
         Just(d) ->
           if d.is-flag then
             // Flag: set and continue with remaining chars
-            parse-short-chars(c, defs, pos-defs, remaining, rest, m.set-flag(d.arg-name))
+            val m1 = m.set-flag(d.arg-name)
+            val m2 = apply-actions(d.arg-actions, m1)
+            parse-short-chars(c, defs, pos-defs, remaining, rest, m2)
           else
             // Option: remaining chars are the value, or consume next arg
             match remaining
@@ -188,6 +199,15 @@ fun check-required-positionals( pos-defs : list<arg-def>, m : arg-matches ) : <k
       if pd.arg-required && m.get-many(pd.arg-name).is-empty then
         klap-fail("missing required argument '<" ++ pd.arg-value-name ++ ">'")
       check-required-positionals(rest, m)
+
+// ---------------------------------------------------------------------------
+// Apply action list to matches
+// ---------------------------------------------------------------------------
+
+fun apply-actions( actions : list<(string, string)>, m : arg-matches ) : arg-matches
+  match actions
+    Nil -> m
+    Cons((target, value), rest) -> apply-actions(rest, m.add-value(target, value))
 
 // ---------------------------------------------------------------------------
 // Lookup helpers

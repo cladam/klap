@@ -350,6 +350,114 @@ fun positional-validation-tests()
         Left(msg) -> assert/is-true(msg.str-contains("bogus"))
 
 // ---------------------------------------------------------------------------
+// Action flag tests (Gap 1 + 2)
+// ---------------------------------------------------------------------------
+
+fun action-app() : command
+  command("ls")
+    .arg(option("sort").hidden.default-value("name")
+          .values(["name","size","time","extension","version","none"]))
+    .arg(option("format").hidden.default-value("columns"))
+    .arg(flag-short("", 'S').no-long.action("sort", "size").help("sort by size"))
+    .arg(flag-short("", 't').no-long.action("sort", "time").help("sort by time"))
+    .arg(flag-short("", 'U').no-long.action("sort", "none").help("do not sort"))
+    .arg(flag-short("", 'l').no-long.action("format", "long").help("long format"))
+    .arg(flag-short("", '1').no-long.action("format", "one").help("one per line"))
+    .arg(flag-short("", 'C').no-long.action("format", "columns").help("columns"))
+    // Multi-action flag: -g sets format=long + no-owner=true
+    .arg(flag("no-owner").hidden)
+    .arg(flag-short("", 'g').no-long.action("format", "long").action("no-owner", "true"))
+    .arg(positional("FILE").multiple)
+
+fun action-tests()
+  println("\n" ++ bold("=== klap: action flag tests ==="))
+  defaultKDivHandler
+    dtest("action flag -S sets sort=size")
+      match try-klap({ action-app().parse(["-S"]) })
+        Right(m) -> assert/is-true(m.get-one("sort") == Just("size"))
+        Left(msg) -> fatal("unexpected error: " ++ msg)
+
+    dtest("action flag -t sets sort=time")
+      match try-klap({ action-app().parse(["-t"]) })
+        Right(m) -> assert/is-true(m.get-one("sort") == Just("time"))
+        Left(msg) -> fatal("unexpected error: " ++ msg)
+
+    dtest("last-wins: -St gives sort=time")
+      match try-klap({ action-app().parse(["-St"]) })
+        Right(m) -> assert/is-true(m.get-one("sort") == Just("time"))
+        Left(msg) -> fatal("unexpected error: " ++ msg)
+
+    dtest("last-wins: -tS gives sort=size")
+      match try-klap({ action-app().parse(["-tS"]) })
+        Right(m) -> assert/is-true(m.get-one("sort") == Just("size"))
+        Left(msg) -> fatal("unexpected error: " ++ msg)
+
+    dtest("last-wins: -1l gives format=long")
+      match try-klap({ action-app().parse(["-1l"]) })
+        Right(m) -> assert/is-true(m.get-one("format") == Just("long"))
+        Left(msg) -> fatal("unexpected error: " ++ msg)
+
+    dtest("last-wins: -l1 gives format=one")
+      match try-klap({ action-app().parse(["-l1"]) })
+        Right(m) -> assert/is-true(m.get-one("format") == Just("one"))
+        Left(msg) -> fatal("unexpected error: " ++ msg)
+
+    dtest("multi-action: -g sets format=long and no-owner=true")
+      match try-klap({ action-app().parse(["-g"]) })
+        Right(m) ->
+          assert/is-true(m.get-one("format") == Just("long"))
+          assert/is-true(m.get-one("no-owner") == Just("true"))
+        Left(msg) -> fatal("unexpected error: " ++ msg)
+
+    dtest("action with --sort=time overrides -S")
+      match try-klap({ action-app().parse(["-S", "--sort=time"]) })
+        Right(m) -> assert/is-true(m.get-one("sort") == Just("time"))
+        Left(msg) -> fatal("unexpected error: " ++ msg)
+
+// ---------------------------------------------------------------------------
+// Optional value tests (Gap 3)
+// ---------------------------------------------------------------------------
+
+fun optional-value-app() : command
+  command("ls")
+    .arg(option("classify")
+          .optional-value("always")
+          .values(["always","yes","auto","never","no","none"])
+          .help("append indicator"))
+    .arg(positional("FILE").multiple)
+
+fun optional-value-tests()
+  println("\n" ++ bold("=== klap: optional value tests ==="))
+  defaultKDivHandler
+    dtest("--classify without = uses default 'always'")
+      match try-klap({ optional-value-app().parse(["--classify"]) })
+        Right(m) -> assert/is-true(m.get-one("classify") == Just("always"))
+        Left(msg) -> fatal("unexpected error: " ++ msg)
+
+    dtest("--classify=auto uses explicit value")
+      match try-klap({ optional-value-app().parse(["--classify=auto"]) })
+        Right(m) -> assert/is-true(m.get-one("classify") == Just("auto"))
+        Left(msg) -> fatal("unexpected error: " ++ msg)
+
+    dtest("no --classify at all gives nothing")
+      match try-klap({ optional-value-app().parse([]) })
+        Right(m) -> assert/is-true(m.get-one("classify").is-nothing)
+        Left(msg) -> fatal("unexpected error: " ++ msg)
+
+    dtest("--classify followed by positional uses default, not positional")
+      match try-klap({ optional-value-app().parse(["--classify", "myfile"]) })
+        Right(m) ->
+          assert/is-true(m.get-one("classify") == Just("always"))
+          assert/is-true(m.get-positionals.length == 1)
+          assert/is-true(m.get-positionals.any(fn(p) p == "myfile"))
+        Left(msg) -> fatal("unexpected error: " ++ msg)
+
+    dtest("--classify=bogus rejects invalid value")
+      match try-klap({ optional-value-app().parse(["--classify=bogus"]) })
+        Right(_) -> fatal("should have rejected 'bogus'")
+        Left(msg) -> assert/is-true(msg.str-contains("bogus"))
+
+// ---------------------------------------------------------------------------
 // Entry point
 // ---------------------------------------------------------------------------
 
@@ -359,3 +467,5 @@ pub fun main() : io ()
   error-tests()
   help-tests()
   positional-validation-tests()
+  action-tests()
+  optional-value-tests()

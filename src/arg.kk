@@ -24,7 +24,8 @@ pub struct arg-def
   arg-multiple   : bool = False          // can appear multiple times
   arg-required   : bool = False          // required positional
   arg-hidden     : bool = False          // hide from help output
-  arg-action     : maybe<string> = Nothing // for flags that also set a value (e.g., -S sets sort=size)
+  arg-actions    : list<(string, string)> = [] // for flags that set values (e.g., -S sets sort=size)
+  arg-optional-value : maybe<string> = Nothing // default value when option used without =
 
 // ---------------------------------------------------------------------------
 // Builders — create arg-def values
@@ -95,8 +96,11 @@ pub fun no-long( a : arg-def ) : arg-def
 pub fun long( a : arg-def, l : string ) : arg-def
   a(arg-long = Just(l))
 
-pub fun action( a : arg-def, val_ : string ) : arg-def
-  a(arg-action = Just(val_))
+pub fun action( a : arg-def, target : string, val_ : string ) : arg-def
+  a(arg-actions = Cons((target, val_), a.arg-actions))
+
+pub fun optional-value( a : arg-def, default : string ) : arg-def
+  a(arg-optional-value = Just(default))
 
 // ---------------------------------------------------------------------------
 // Helpers
