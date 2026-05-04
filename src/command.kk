@@ -16,6 +16,7 @@ pub struct command
   cmd-author  : string = ""           // author info
   cmd-args    : list<arg-def> = []    // registered arguments (reversed during building)
   cmd-usage   : string = ""           // custom usage line (auto-generated if empty)
+  cmd-subcmds : list<(string, string)> = []  // (name, description) pairs
 
 // ---------------------------------------------------------------------------
 // Builders
@@ -38,6 +39,9 @@ pub fun usage( c : command, u : string ) : command
 
 pub fun arg( c : command, a : arg-def ) : command
   c(cmd-args = Cons(a, c.cmd-args))
+
+pub fun subcommand( c : command, name : string, desc : string ) : command
+  c(cmd-subcmds = c.cmd-subcmds ++ [(name, desc)])
 
 // Get args in definition order
 pub fun args-ordered( c : command ) : list<arg-def>

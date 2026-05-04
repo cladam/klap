@@ -37,8 +37,18 @@ pub fun format-help( c : command ) : string
     "      --version              output version information and exit"
   ]
 
+  val subcmds = c.cmd-subcmds
+  val cmds-section = if subcmds.is-empty then ""
+  else
+    val cmd-lines = subcmds.map fn(p)
+      val left = "  " ++ p.fst
+      val padded = if left.count < 25 then left ++ pad-spaces(25 - left.count)
+                  else left ++ "\n" ++ pad-spaces(25)
+      padded ++ p.snd
+    "\n\nCommands:\n" ++ cmd-lines.join("\n")
+
   [usage-line, about-line, "Options:"].join("\n") ++ "\n" ++
-    (flag-lines ++ builtins).join("\n")
+    (flag-lines ++ builtins).join("\n") ++ cmds-section
 
 fun format-arg-help( a : arg-def ) : string
   // Short part: "  -a, " or "      "
